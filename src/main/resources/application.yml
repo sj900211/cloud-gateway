@@ -1,0 +1,109 @@
+freshr:
+  service:
+    name: cloud-gateway
+    serial: 103
+
+server:
+  port: 50${freshr.service.serial}
+
+spring:
+  application:
+    name: ${freshr.service.name}
+
+  profiles:
+    active: test
+
+  main:
+    allow-circular-references: true
+    allow-bean-definition-overriding: true
+
+  jpa:
+    open-in-view: false
+    show-sql: false
+    generate-ddl: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        show-sql: false
+        SQL: error
+        format_sql: false
+        use_sql_comments: false
+        type:
+          descriptor:
+            sql: error
+        jdbc:
+          batch_size: 5
+        default_batch_fetch_size: 1000
+
+  datasource:
+    hikari:
+      minimumIdle: 200
+      maximumPoolSize: 200
+      poolName: SpringBootJPAHikariCP
+      idleTimeout: 10000
+      connection-timeout: 10000
+      validation-timeout: 10000
+      maxLifetime: 580000
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+        useLocalSessionState: true
+        useLocalTransactionState: true
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
+        cacheServerConfiguration: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
+
+  cloud:
+    config:
+      enabled: false
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: '*'
+            allowed-headers: '*'
+            allowed-methods:
+              - GET
+              - HEAD
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+              - TRACE
+      routes:
+        - id: service-auth
+          uri: lb://service-auth
+          predicates:
+            - Path=/auth/refresh
+          filters:
+            - name: TokenAuthentication
+              args:
+                isRefresh: true
+        - id: service-auth
+          uri: lb://service-auth
+          predicates:
+            - Path=/auth/**
+          filters:
+            - name: TokenAuthentication
+        - id: service-account
+          uri: lb://service-account
+          predicates:
+            - Path=/account/**
+          filters:
+            - name: TokenAuthentication
+
+eureka:
+  client:
+    enabled: false
+
+logging:
+  level:
+    root: error
